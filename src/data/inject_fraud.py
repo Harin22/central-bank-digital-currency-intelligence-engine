@@ -76,6 +76,22 @@ def get_wallet_rows(wallet):
     )
 
 
+def update_amount_deviation(idx):
+    """
+    One consistent definition everywhere:
+    (amount - avg_amount_7d) / avg_amount_7d
+    """
+    avg_amount = df.at[idx, "avg_amount_7d"]
+
+    if pd.isna(avg_amount) or avg_amount <= 0:
+        return
+
+    df.at[idx, "amount_deviation"] = round(
+        (df.at[idx, "amount_eur"] - avg_amount) / avg_amount,
+        2
+    )
+
+
 # ============================================================
 # 1. ACCOUNT TAKEOVER
 # ============================================================
@@ -160,25 +176,16 @@ def inject_account_takeover(target=2_000):
     for idx in selected_indices:
 
         # New device
-        df.loc[
-            idx,
-            "new_device"
-        ] = 1
+        df.at[idx, "new_device"] = 1
 
         # New location
-        df.loc[
-            idx,
-            "new_location"
-        ] = 1
+        df.at[idx, "new_location"] = 1
 
         # ----------------------------------------------------
         # Unusual transaction amount
         # ----------------------------------------------------
 
-        original_amount = df.loc[
-            idx,
-            "amount_eur"
-        ]
+        original_amount = df.at[idx, "amount_eur"]
 
         multiplier = rng.uniform(
             5.0,
@@ -191,53 +198,28 @@ def inject_account_takeover(target=2_000):
             5000
         )
 
-        df.loc[
-            idx,
-            "amount_eur"
-        ] = round(
-            new_amount,
+        df.at[idx, "amount_eur"] = round(
+            float(new_amount),
             2
         )
 
         # ----------------------------------------------------
-        # Amount deviation
+        # Amount deviation (consistent definition)
         # ----------------------------------------------------
 
-        avg_amount = df.loc[
-            idx,
-            "avg_amount_7d"
-        ]
-
-        if (
-            pd.notna(avg_amount)
-            and avg_amount > 0
-        ):
-
-            df.loc[
-                idx,
-                "amount_deviation"
-            ] = round(
-                new_amount - avg_amount,
-                2
-            )
+        update_amount_deviation(idx)
 
         # ----------------------------------------------------
         # Some takeover transactions also become fast
         # ----------------------------------------------------
 
-        df.loc[
-            idx,
-            "transactions_1h"
-        ] = max(
-            int(df.loc[idx, "transactions_1h"]),
+        df.at[idx, "transactions_1h"] = max(
+            int(df.at[idx, "transactions_1h"]),
             int(rng.integers(5, 15))
         )
 
-        df.loc[
-            idx,
-            "sender_velocity"
-        ] = max(
-            int(df.loc[idx, "sender_velocity"]),
+        df.at[idx, "sender_velocity"] = max(
+            int(df.at[idx, "sender_velocity"]),
             int(rng.integers(5, 15))
         )
 
@@ -336,36 +318,18 @@ def inject_burst(target=2_000):
     for idx in selected_indices:
 
         # Extremely high short-term activity
-        df.loc[
-            idx,
-            "transactions_1h"
-        ] = int(
-            rng.integers(
-                15,
-                40
-            )
+        df.at[idx, "transactions_1h"] = int(
+            rng.integers(15, 40)
         )
 
         # High daily activity
-        df.loc[
-            idx,
-            "transactions_24h"
-        ] = int(
-            rng.integers(
-                30,
-                80
-            )
+        df.at[idx, "transactions_24h"] = int(
+            rng.integers(30, 80)
         )
 
         # High sender velocity
-        df.loc[
-            idx,
-            "sender_velocity"
-        ] = int(
-            rng.integers(
-                15,
-                40
-            )
+        df.at[idx, "sender_velocity"] = int(
+            rng.integers(15, 40)
         )
 
     count = mark_fraud(
@@ -471,11 +435,8 @@ def inject_smurfing(target=2_000):
             150
         )
 
-        df.loc[
-            idx,
-            "amount_eur"
-        ] = round(
-            new_amount,
+        df.at[idx, "amount_eur"] = round(
+            float(new_amount),
             2
         )
 
@@ -483,57 +444,23 @@ def inject_smurfing(target=2_000):
         # Increased transaction frequency
         # ----------------------------------------------------
 
-        df.loc[
-            idx,
-            "transactions_1h"
-        ] = int(
-            rng.integers(
-                5,
-                15
-            )
+        df.at[idx, "transactions_1h"] = int(
+            rng.integers(5, 15)
         )
 
-        df.loc[
-            idx,
-            "transactions_24h"
-        ] = int(
-            rng.integers(
-                15,
-                35
-            )
+        df.at[idx, "transactions_24h"] = int(
+            rng.integers(15, 35)
         )
 
-        df.loc[
-            idx,
-            "sender_velocity"
-        ] = int(
-            rng.integers(
-                5,
-                15
-            )
+        df.at[idx, "sender_velocity"] = int(
+            rng.integers(5, 15)
         )
 
         # ----------------------------------------------------
-        # Amount deviation
+        # Amount deviation (consistent definition)
         # ----------------------------------------------------
 
-        avg_amount = df.loc[
-            idx,
-            "avg_amount_7d"
-        ]
-
-        if (
-            pd.notna(avg_amount)
-            and avg_amount > 0
-        ):
-
-            df.loc[
-                idx,
-                "amount_deviation"
-            ] = round(
-                new_amount - avg_amount,
-                2
-            )
+        update_amount_deviation(idx)
 
     count = mark_fraud(
         selected_indices
@@ -571,7 +498,7 @@ def inject_mule_chain(target=2_000):
     # --------------------------------------------------------
     # Build wallet groups
     #
-    # A → B → C → D
+    # A → B → C → D → A
     # --------------------------------------------------------
 
     for i in range(
@@ -632,14 +559,14 @@ def inject_mule_chain(target=2_000):
         # A → B
         # B → C
         # C → D
-        # D → C
+        # D → A
         # ----------------------------------------------------
 
         receivers = [
             wallet_b,
             wallet_c,
             wallet_d,
-            wallet_c
+            wallet_a
         ]
 
         for rows, receiver in zip(
@@ -650,10 +577,7 @@ def inject_mule_chain(target=2_000):
             for idx in rows:
 
                 # Actual wallet-to-wallet movement
-                df.loc[
-                    idx,
-                    "receiver_id"
-                ] = receiver
+                df.at[idx, "receiver_id"] = receiver
 
                 # Suspicious transfer amount
                 new_amount = rng.uniform(
@@ -661,66 +585,29 @@ def inject_mule_chain(target=2_000):
                     1500
                 )
 
-                df.loc[
-                    idx,
-                    "amount_eur"
-                ] = round(
-                    new_amount,
+                df.at[idx, "amount_eur"] = round(
+                    float(new_amount),
                     2
                 )
 
                 # Increased activity
-                df.loc[
-                    idx,
-                    "transactions_1h"
-                ] = int(
-                    rng.integers(
-                        5,
-                        15
-                    )
+                df.at[idx, "transactions_1h"] = int(
+                    rng.integers(5, 15)
                 )
 
-                df.loc[
-                    idx,
-                    "transactions_24h"
-                ] = int(
-                    rng.integers(
-                        15,
-                        35
-                    )
+                df.at[idx, "transactions_24h"] = int(
+                    rng.integers(15, 35)
                 )
 
-                df.loc[
-                    idx,
-                    "sender_velocity"
-                ] = int(
-                    rng.integers(
-                        5,
-                        15
-                    )
+                df.at[idx, "sender_velocity"] = int(
+                    rng.integers(5, 15)
                 )
 
                 # ------------------------------------------------
-                # Amount deviation
+                # Amount deviation (consistent definition)
                 # ------------------------------------------------
 
-                avg_amount = df.loc[
-                    idx,
-                    "avg_amount_7d"
-                ]
-
-                if (
-                    pd.notna(avg_amount)
-                    and avg_amount > 0
-                ):
-
-                    df.loc[
-                        idx,
-                        "amount_deviation"
-                    ] = round(
-                        new_amount - avg_amount,
-                        2
-                    )
+                update_amount_deviation(idx)
 
                 selected_indices.append(idx)
 
@@ -817,14 +704,9 @@ def inject_unusual_spending(target=1500):
         if len(wallet_history) > 0:
 
             normal_mean = wallet_history["amount_eur"].mean()
-            normal_std = wallet_history["amount_eur"].std()
-
-            if pd.isna(normal_std) or normal_std == 0:
-                normal_std = max(normal_mean * 0.25, 10)
 
         else:
             normal_mean = 100
-            normal_std = 25
 
         # Create a transaction far outside normal behaviour
         multiplier = rng_local.uniform(6, 15)
@@ -839,11 +721,8 @@ def inject_unusual_spending(target=1500):
 
         df.at[idx, "amount_eur"] = round(float(new_amount), 2)
 
-        # Strong spending deviation
-        df.at[idx, "amount_deviation"] = round(
-            float((new_amount - normal_mean) / normal_std),
-            2
-        )
+        # Amount deviation (consistent definition)
+        update_amount_deviation(idx)
 
         # Sometimes combine with international/new location behaviour
         if rng_local.random() < 0.45:
@@ -986,11 +865,8 @@ def inject_circular_transfers(target=500):
                 rng_local.integers(5, 15)
             )
 
-            # Make behaviour unusual
-            df.at[idx, "amount_deviation"] = round(
-                float(rng_local.uniform(2.5, 7.0)),
-                2
-            )
+            # Amount deviation (consistent definition)
+            update_amount_deviation(idx)
 
         selected.extend(indices)
 
@@ -1035,10 +911,8 @@ def inject_circular_transfers(target=500):
                 rng_local.integers(5, 15)
             )
 
-            df.at[idx, "amount_deviation"] = round(
-                float(rng_local.uniform(2.5, 7.0)),
-                2
-            )
+            # Amount deviation (consistent definition)
+            update_amount_deviation(idx)
 
         selected.extend(extra.tolist())
 
