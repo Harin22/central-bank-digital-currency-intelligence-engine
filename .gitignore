@@ -4,3 +4,12 @@ __pycache__/
 *.pyc
 .env
 .ipynb_checkpoints/
+# MLflow
+mlflow.db
+mlruns/
+
+# trained model files
+models/*.joblib
+
+# model predictions
+data/processed/rf_predictions.csv
