@@ -1,4 +1,5 @@
 import os
+
 import pandas as pd
 from dotenv import load_dotenv
 from neo4j import GraphDatabase
@@ -22,10 +23,10 @@ df = pd.read_csv(CSV_PATH)
 print(f"Loaded {len(df):,} transactions")
 
 with driver.session(database=DATABASE) as session:
+
     session.run("""
-        CREATE CONSTRAINT transaction_id_unique IF NOT EXISTS
-        FOR (t:Transaction)
-        REQUIRE t.transaction_id IS UNIQUE
+        MATCH (n)
+        DETACH DELETE n
     """)
 
     session.run("""
@@ -35,6 +36,7 @@ with driver.session(database=DATABASE) as session:
     """)
 
     for start in range(0, len(df), 1000):
+
         batch = df.iloc[start:start + 1000].to_dict("records")
 
         session.run("""
@@ -48,7 +50,7 @@ with driver.session(database=DATABASE) as session:
                 wallet_id: row.receiver_id
             })
 
-            CREATE (t:Transaction {
+            CREATE (sender)-[:TRANSFER {
                 transaction_id: row.transaction_id,
                 amount_eur: row.amount_eur,
                 timestamp: row.timestamp,
@@ -59,14 +61,13 @@ with driver.session(database=DATABASE) as session:
                 transactions_24h: row.transactions_24h,
                 sender_velocity: row.sender_velocity,
                 receiver_velocity: row.receiver_velocity
-            })
-
-            CREATE (sender)-[:SENT]->(t)
-            CREATE (t)-[:RECEIVED_BY]->(receiver)
+            }]->(receiver)
         """, rows=batch)
 
-        print(f"Loaded {min(start + 1000, len(df)):,} / {len(df):,}")
+        print(
+            f"Loaded {min(start + 1000, len(df)):,} / {len(df):,}"
+        )
 
 driver.close()
 
-print("finished loading transactions into Neo4j")
+print("finished loading Wallet → Wallet graph")

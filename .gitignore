@@ -14,3 +14,7 @@ models/*.joblib
 #model predictions
 data/processed/rf_predictions.csv
 data/processed/xgb_predictions.csv
+
+# GNN generated files
+data/processed/gnn_graph.pt
+models/*.pt
