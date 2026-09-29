@@ -8,8 +8,9 @@ __pycache__/
 mlflow.db
 mlruns/
 
-# trained model files
+#trained model files
 models/*.joblib
 
-# model predictions
+#model predictions
 data/processed/rf_predictions.csv
+data/processed/xgb_predictions.csv
