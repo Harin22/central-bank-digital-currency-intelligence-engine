@@ -249,4 +249,4 @@ Use `POST /predict` to submit a valid transaction JSON object and inspect the th
 
 ## License
 
-This project is licensed under the MIT License. See the `LICENSE` file for details.
+This project is licensed under the MIT License. See the `LICENSE` file for details. 
