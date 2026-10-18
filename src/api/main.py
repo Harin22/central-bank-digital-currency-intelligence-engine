@@ -3,6 +3,7 @@ from pathlib import Path
 import joblib
 from fastapi import FastAPI
 from pydantic import BaseModel
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from src.api.inference import create_features
 from src.api.gnn_inference import predict_gnn
@@ -13,6 +14,8 @@ app = FastAPI(
     description="Fraud detection using Random Forest, XGBoost and GraphSAGE",
     version="1.0.0",
 )
+
+Instrumentator().instrument(app).expose(app, include_in_schema=False)
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]

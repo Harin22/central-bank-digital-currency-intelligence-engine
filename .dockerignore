@@ -1,0 +1,11 @@
+.git
+.venv
+venv
+.env
+.env.*
+!.env.example
+__pycache__
+*.py[cod]
+data/
+mlruns/
+mlflow.db

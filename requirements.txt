@@ -9,3 +9,4 @@ scikit-learn==1.9.1
 torch==2.14.0
 torch-geometric==2.8.0.post1
 xgboost==3.4.1
+prometheus-fastapi-instrumentator==8.1.0
